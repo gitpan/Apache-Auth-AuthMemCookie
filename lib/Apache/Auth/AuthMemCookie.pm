@@ -2,11 +2,15 @@ package Apache::Auth::AuthMemCookie;
 
 use strict;
 use CGI::Cookie ();
+use Apache2::RequestUtil;
+use Apache2::RequestIO;
+use APR::Table;
+use Apache2::RequestRec;
 use Apache2::Const -compile => qw(OK REDIRECT FORBIDDEN AUTH_REQUIRED);
 use Apache2::Log;
 use Cache::Memcached;
 use vars qw($VERSION);
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 use Data::Dumper;
 
@@ -54,7 +58,7 @@ sub authen_handler {
         delete $ENV{$k} if $k =~ /^(ATTR_|UserName)/;
     }
     foreach my $h (keys %{$r->headers_in}) {
-        $r->headers_in->unset($h) if $h =~ /^(ATTR_|UserName)/;
+        $r->headers_in->unset($h) if $h =~ /^(ATTR_|UserName|X_REMOTE_USER|HTTP_X_REMOTE_USER)/;
     }
 
     # what is our cookie called

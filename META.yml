@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               Apache-Auth-AuthMemCookie
-version:            0.01
+version:            0.02
 abstract:           mod_perl replacement for Apache2 authmemcookie authentication module
 author:
     - Piers Harding <piers@cpan.org>
