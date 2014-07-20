@@ -10,7 +10,7 @@ use Apache2::Const -compile => qw(OK REDIRECT FORBIDDEN AUTH_REQUIRED);
 use Apache2::Log;
 use Cache::Memcached;
 use vars qw($VERSION);
-$VERSION = '0.02';
+$VERSION = '0.03';
 
 use Data::Dumper;
 
@@ -27,17 +27,20 @@ use Data::Dumper;
 
     Alias /simplesaml /home/piers/git/public/simplesamlphp/www
     perlModule Apache::Auth::AuthMemCookie
+    ErrorDocument 401 "/simplesaml/authmemcookie.php"
+    PerlRequire /path/to/authmemcookie/tools/startup.pl
+    perlModule Apache::Auth::AuthMemCookie
+
+    # Prompt for authentication:
     <Location /location_to_protect>
-       # get redirected here when not authorised
-       ErrorDocument 401 "/simplesaml/authmemcookie.php"
-       PerlAuthenHandler Apache::Auth::AuthMemCookie::authen_handler
-       PerlSetVar AuthMemCookie "NameOfCookie"
-       PerlSetVar AuthMemServers "127.0.0.1:11211, /var/sock/memcached"
-       PerlSetVar AuthMemDebug 1 # if you want to debug
-       PerlSetVar AuthMemAttrsInHeaders 1 # use headers instead of ENV vars
-       AuthType Cookie
-       AuthName "My Login"
-       Require valid-user
+        AuthType Cookie
+        AuthName "My Service"
+        Require valid-user
+        PerlAuthenHandler Apache::Auth::AuthMemCookie::authen_handler
+        PerlSetVar AuthMemCookie "AuthMemCookie"
+        PerlSetVar AuthMemServers "127.0.0.1:11211, /var/sock/memcached"
+        PerlSetVar AuthMemAttrsInHeaders 1 # if you want to set headers instead of ENV vars
+        PerlSetVar AuthMemDebug 1 # if you want to debug
     </Location>
 
 =back
@@ -60,6 +63,9 @@ sub authen_handler {
     foreach my $h (keys %{$r->headers_in}) {
         $r->headers_in->unset($h) if $h =~ /^(ATTR_|UserName|X_REMOTE_USER|HTTP_X_REMOTE_USER)/;
     }
+    $r->headers_in->unset('UserName');
+    $r->headers_in->unset('X_REMOTE_USER');
+    $r->headers_in->unset('X-Remote-User');
 
     # what is our cookie called
     my $cookie_name = $r->dir_config("AuthMemCookie") ? $r->dir_config("AuthMemCookie") : 'AuthMemCookie';
@@ -107,12 +113,18 @@ sub authen_handler {
           $user = $vars{$k};
       }
       if ($header_switch) {
-          $r->headers_in->add($k => $vars{$k});
+          mydebug("setting Header $k => $vars{$k}");
+          if ($k eq "UserName") {
+            $r->headers_in->add('X-Remote-User' => $vars{$k});
+          }
+          else {
+            $r->headers_in->add($k => $vars{$k});
+          }
       }
       else {
+          mydebug("setting ENV $k => $vars{$k}");
           $ENV{$k} = $vars{$k};
       }
-      mydebug("setting var: $k => ".$vars{$k});
     }
       mydebug("The user name is: $user");
     $r->user($user);
