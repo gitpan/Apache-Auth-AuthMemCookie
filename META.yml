@@ -23,4 +23,4 @@ requires:
   CGI::Cookie: 0
   Cache::Memcached: 0
   Test::More: 0
-version: 0.03
+version: 0.04
